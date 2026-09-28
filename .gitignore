@@ -1,0 +1,11 @@
+.secrets/
+.runtime/
+__pycache__/
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+*.log
+dist/
+

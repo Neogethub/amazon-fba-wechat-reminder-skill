@@ -1,0 +1,4 @@
+interface:
+  display_name: "FBA 货件微信提醒"
+  short_description: "连接 Amazon 货件与微信，检查送达窗口截止时间并配置每日提醒"
+  default_prompt: "使用 $fba-shipment-reminder 帮我配置亚马逊货件微信提醒，先测试一次，再每天北京时间上午9点检查。"
