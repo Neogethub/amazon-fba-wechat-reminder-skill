@@ -2,6 +2,13 @@
 
 把 Amazon FBA 送达窗口检查装进自己的 Codex。首次配置店铺凭证和微信通道后，每天北京时间上午9点检查近3个月的未完成货件，通过 Server酱推送需要处理的清单。
 
+> [!IMPORTANT]
+> **第一次使用？请先申请 Amazon SP-API，取得自己的店铺凭证。**
+>
+> **👉 [点击查看：SP-API 申请教程](#sp-api-申请教程)** — 从开发者注册、权限选择，到获取 Client ID、Client Secret 和 Refresh Token，按步骤完成。
+>
+> 已有这三项凭证，可以直接跳到 [首次使用](#首次使用)。
+
 这是可安装的 Skill 与执行脚本。GitHub 分发代码，客户自己的 Codex 和电脑执行任务；无需单独配置大模型 API Key。使用需有可运行技能和工具的 Codex、Python 3.9+、已授权的 Amazon SP-API 应用及 Server酱微信通道。
 
 ## 安装
@@ -24,10 +31,93 @@
 
 若技能未显示，重新打开 Codex。客户端需能够使用 Skill Installer；也可将本仓库的 `skills/fba-shipment-reminder` 整个目录放入自己 Codex 的技能目录。技能是自包含的，不依赖本仓库根目录的文件。
 
+## SP-API 申请教程
+
+**适用情况：你是亚马逊卖家，在自己的电脑上使用本 Skill，只读取自己公司的店铺数据。** 按下面的 **Private Developer（私有开发者）→ 私有卖家应用 → 自授权** 流程操作。每位客户使用自己的应用和凭证。
+
+**流程：准备主账号 → 注册开发者并等待审核 → 创建应用 → 获取 LWA 凭证 → 自授权取得 Token → 本机配置。**
+
+### 第 1 步：准备卖家主账号
+
+需要 **专业销售账户（Professional selling account）**，由店铺 **主账号（Primary User）** 完成注册和自授权。提前准备企业联系信息、应用用途，以及真实的数据存储和安全措施说明。个人销售计划（Individual）目前不符合私有卖家应用的开发条件。[官方注册要求](https://developer-docs.amazon/sp-api/docs/sp-api-registration-overview)
+
+### 第 2 步：注册私有开发者，申请货件访问权限
+
+1. 登录自己站点的 **Seller Central（卖家平台）**，进入 **Apps and Services → Develop Apps（应用和服务 → 开发应用）**。
+2. 如果账号已经迁移到 **[Solution Provider Portal（SPP）](https://solutionproviderportal.amazon.com/)**，从 **Settings → Developer Profile** 查看或填写开发者资料；已有获批资料时，先核对下面的角色权限。
+3. 在开发者资料的 **Data Access** 中，选择 **Private Developer**，表示应用供自己公司使用。
+4. 在 **Roles** 中申请 **Amazon Fulfillment**。本 Skill 使用它读取 FBA 入库计划和货件；单独使用本提醒功能不需要申请 Pricing、Product Listing 或 Brand Analytics。
+5. 如实填写联系方式、**Use Cases（用途）** 和 **Security Controls（安全措施）**，阅读相关协议后提交，并按亚马逊的邮件或 Case 通知补充资料。
+
+描述用途时，可以围绕“读取本公司 FBA 入库货件状态、送达窗口及可编辑截止时间，计算剩余时长，通过本公司配置的 Server酱微信通道提醒相关人员”展开。请按实际部署情况，用自己的话说明数据流向和保护措施；不要照抄不符合实际情况的安全声明。
+
+**提交申请不等于已获批。** 等待开发者资料及所需角色通过审核，再继续配置应用；审核结果和时间以亚马逊通知为准。[私有开发者申请指南](https://developer-docs.amazon/sp-api/docs/register-as-a-private-developer) · [Fulfillment Inbound API 所需角色](https://developer-docs.amazon/sp-api/docs/fulfillment-inbound-api)
+
+### 第 3 步：创建自己的 SP-API 应用
+
+在 SPP 顶部选择 **Develop Apps**，进入应用列表，点击 **Add new app client**。按本 Skill 的用途填写：
+
+| 页面字段 | 本项目如何填写 |
+| --- | --- |
+| App name | 自定义名称，例如 `FBA Shipment Reminder` |
+| API Type | 选择 **SP API** |
+| Business entities supported | 勾选 **Sellers** |
+| Roles | 勾选 **Amazon Fulfillment**；开发者资料获批后，应用中也要选中该角色 |
+| 是否向其他开发者的应用委托 PII 访问权限 | 本 Skill 不使用此功能；若出现该问题，选择 **No** |
+
+保存应用。**私有应用可以在 Draft（草稿）状态下自授权，无需为了自己使用而上架应用商店。** [注册应用指南](https://developer-docs.amazon/sp-api/docs/registering-your-application) · [私有应用自授权说明](https://developer-docs.amazon/sp-api/docs/self-authorization)
+
+### 第 4 步：取得 LWA Client ID 和 Client Secret
+
+回到 **Develop Apps** 应用列表，找到刚创建的应用，点击 **LWA credentials** 下的 **View**；如果界面先显示 **Edit app**，按页面入口进入后查看 LWA credentials。
+
+保存其中的 **Client ID** 和 **Client Secret**，稍后直接填入本机配置页。[查看 LWA 凭证的官方说明](https://developer-docs.amazon/sp-api/docs/viewing-your-application-information-and-credentials)
+
+> [!WARNING]
+> **Application ID 不是 LWA Client ID。**
+> 如果页面只有 Application ID 和 Refresh Token，说明你正在查看授权结果；请回到应用列表，找到 **LWA credentials → View** 获取另外两项。
+
+### 第 5 步：为自己的店铺授权，生成 Refresh Token
+
+1. 打开该应用的授权入口，找到 **Authorize application / Manage Authorizations** 页面；不同版本的按钮位置可能不同。
+2. 如果 SPP 提供 Seller Central 登录链接，通过该链接用**店铺主账号**登录。
+3. 找到需要连接的店铺账号，点击 **Authorize app**。
+4. 保存页面生成的 **Refresh Token**。它必须与第 4 步的 Client ID、Client Secret 属于同一个应用，并对应你要查询的店铺账号。
+
+这里需要的是 **Refresh Token**；短期 Access Token 由脚本自动换取，不需要客户手工生成或定时填写。[官方自授权与 Token 获取步骤](https://developer-docs.amazon/sp-api/docs/self-authorization)
+
+### 第 6 步：把三项凭证填进本机配置页
+
+核对自己已经准备齐以下内容：
+
+| 凭证 | 从哪里获取 |
+| --- | --- |
+| **LWA Client ID** | 同一应用的 **LWA credentials → View** |
+| **LWA Client Secret** | 同上，与 Client ID 成对使用 |
+| **Refresh Token** | 自己店铺的 **Authorize app** 授权结果 |
+
+接着按下方 [首次使用](#首次使用) 绑定微信、取得 Server酱 SendKey，让 Codex 打开本机配置页。选择与店铺对应的区域（美国站选 **NA 北美**），保存后先测试 API 和微信，再启用每天的提醒。
+
+**三项亚马逊凭证和 SendKey 只在自己的本机配置页填写，不要放进聊天、截图、GitHub Issue 或公开仓库。**
+
+<details>
+<summary><strong>申请或连接时卡住了？查看常见问题</strong></summary>
+
+- **找不到 Amazon Fulfillment：** 先在 Developer Profile 中申请该角色，获批后再回应用设置勾选。
+- **已有 SPP 账号，又出现引导页：** 先进入已有账号的主页，查看 Developer Profile 和 Develop Apps，避免重复创建资料。
+- **只看到 Refresh Token 和 Application ID：** 回到应用列表的 LWA credentials → View，取得 Client ID 和 Client Secret。
+- **应用显示 Draft：** 私有应用支持在草稿状态下自授权，继续完成第 5 步即可。
+- **API 返回 403：** 检查区域、店铺自授权，以及开发者资料和应用是否都具有 Amazon Fulfillment 角色；不要只凭已生成 Token 判断权限完整。
+- **提示 Client ID / Secret 或 Token 无效：** 核对三项是否来自同一应用，且授权仍有效。换应用时需要重新配置对应凭证。
+
+</details>
+
+教程依据亚马逊官方文档于 **2026-09-28** 核对；入口名称可能因站点、语言和 SPP 迁移状态而不同，以当前页面和官方指南为准。
+
 ## 首次使用
 
 1. 在 [Server酱](https://sct.ftqq.com/) 登录，绑定自己的微信接收通道并取得 SendKey。
-2. 准备本人 Amazon 应用的 **LWA Client ID、Client Secret、Refresh Token**，应用需要 Amazon Fulfillment 角色及店铺授权。Application ID 不能替代 Client ID。
+2. 按上方 **[SP-API 申请教程](#sp-api-申请教程)** 准备本人应用的 **LWA Client ID、Client Secret、Refresh Token**，应用需要 Amazon Fulfillment 角色及店铺授权。Application ID 不能替代 Client ID。
 3. 让 Codex 启动技能的本机配置页，选择 NA / EU / FE 区域，在页面填写上述3项凭证和 SendKey。不要把真实密钥粘贴进聊天或 GitHub。
 4. Codex 先读取真实货件生成预览，再发送一次微信测试；确认手机收到后，建立每日任务。
 
