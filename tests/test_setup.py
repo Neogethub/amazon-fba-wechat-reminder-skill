@@ -1,5 +1,5 @@
 import contextlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import io
 import json
 import os
@@ -32,6 +32,48 @@ DUMMY = {"client_id": "amzn1.application-oa2-client.DUMMYONLY",
 
 
 class SetupTests(unittest.TestCase):
+    def test_schedule_uses_same_instant_in_different_timezones_and_dst_seasons(self):
+        # Covers the US spring/fall transition dates and both US Pacific offsets,
+        # without relying on the host's time zone database (including Windows).
+        for day in ((2026, 3, 7), (2026, 3, 8), (2026, 10, 31), (2026, 11, 1)):
+            instant = datetime(*day, 0, 30, tzinfo=timezone.utc)
+            for offset in (-8, -7, 0, 8, 14):
+                with self.subTest(day=day, offset=offset):
+                    local = instant.astimezone(timezone(timedelta(hours=offset)))
+                    result = configure.schedule_info(local)
+                    expected = instant.replace(hour=1, minute=0)
+                    self.assertEqual(job.parse_time(result["next_run_utc"]), expected)
+                    self.assertEqual(job.parse_time(result["next_beijing_run"]), expected)
+                    self.assertEqual(result["scheduler_timezone"], "UTC")
+                    self.assertEqual(result["scheduler_daily_time"], "01:00")
+
+    def test_schedule_rolls_forward_at_nine_and_across_year_boundary(self):
+        for source, expected in (
+                ("2026-09-29T00:59:59+00:00", "2026-09-29T01:00:00+00:00"),
+                ("2026-09-29T01:00:00+00:00", "2026-09-30T01:00:00+00:00"),
+                ("2026-12-31T16:30:00+00:00", "2027-01-01T01:00:00+00:00")):
+            with self.subTest(source=source):
+                result = configure.schedule_info(datetime.fromisoformat(source))
+                self.assertEqual(job.parse_time(result["next_run_utc"]), datetime.fromisoformat(expected))
+                self.assertGreater(job.parse_time(result["next_beijing_run"]), datetime.fromisoformat(source))
+        with self.assertRaises(ValueError):
+            configure.schedule_info(datetime(2026, 9, 29, 9))
+
+    def test_schedule_info_cli_is_calculation_only_and_does_not_access_credentials(self):
+        with patch.object(sys, "argv", ["configure.py", "schedule-info"]), \
+             patch.object(configure, "load_config") as creds, \
+             patch.object(configure, "load_key") as key, \
+             patch.object(configure, "send") as sender, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(configure.main(), 0)
+        result = json.loads(output.getvalue())
+        self.assertFalse(result["scheduler_verified"])
+        self.assertEqual(result["next_run_source"], "calculated_target_not_saved_schedule")
+        self.assertIn(str(SCRIPTS/"shipment_reminder.py"), result["command"])
+        creds.assert_not_called()
+        key.assert_not_called()
+        sender.assert_not_called()
+
     def test_cli_emits_utf8_even_when_parent_pipes_use_ascii(self):
         env = dict(os.environ, PYTHONIOENCODING="ascii", SP_API_CLIENT_ID="",
                    SP_API_CLIENT_SECRET="", SP_API_REFRESH_TOKEN="")

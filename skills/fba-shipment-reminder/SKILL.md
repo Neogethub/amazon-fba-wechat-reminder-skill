@@ -21,7 +21,7 @@ description: Configure and run Amazon FBA delivery-window deadline reminders thr
 | 读取真实货件并生成预览，不推送 | `python scripts/shipment_reminder.py preview` |
 | 推送最近15分钟内的预览，同一快照只发一次 | `python scripts/shipment_reminder.py send-test` |
 | 每日运行，上午9点前跳过，每天成功后去重 | `python scripts/shipment_reminder.py scheduled` |
-| 获取当前解释器、实际命令及北京时间排程信息 | `python scripts/configure.py schedule-info` |
+| 获取实际命令和北京时间/UTC目标排程，不查询已保存任务 | `python scripts/configure.py schedule-info` |
 
 ## 首次配置
 
@@ -29,7 +29,7 @@ description: Configure and run Amazon FBA delivery-window deadline reminders thr
 2. 运行 `configure.py status`。配置有效时复用，不重复索取凭证；该命令只验证格式，不代表在线授权成功。
 3. 未配置时，在 macOS/Windows 运行 `configure.py setup`，将其打印的随机本机网址交给用户或在可用的浏览器工具中打开。让用户亲自在页面输入凭证；不要把密钥读入对话、截图、日志或命令参数。保留服务进程到保存完成或超时。Linux 使用连接说明中的环境变量方式。
 4. 用户要求配置提醒或测试时，运行 `preview` 验证真实读取；检查退出状态和快照完整性，不能将失败解释成“没有临期货件”。随后用 `send-test` 向用户已配置的本人微信发送一次结果，确认手机收件。若用户只要求安装技能，先完成安装，不执行推送。
-5. 用户要求每天提醒时，按 [定时任务说明](references/scheduling.md) 创建或更新其 Codex 桌面定时任务。技能安装本身不等于定时任务已启用。
+5. 用户要求每天提醒时，按 [定时任务说明](references/scheduling.md) 创建或更新其 Codex 桌面定时任务。北京时间09:00对应UTC 01:00；先使用客户端支持的明确时区排程，再回读已保存任务的实际下一次触发时间，换算到北京时间核对。`schedule-info` 只计算目标，不能证明任务已启用或排程正确。升级技能时也应核对已有任务，不重复创建。
 
 ## 固定业务口径
 

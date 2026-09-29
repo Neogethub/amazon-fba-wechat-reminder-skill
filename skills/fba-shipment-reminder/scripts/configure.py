@@ -122,6 +122,29 @@ def setup():
     print("配置已保存，尚未测试 API 或微信送达。")
 
 
+def schedule_info(now=None):
+    """Calculate an intended schedule; this does not inspect a saved automation."""
+    now = now if now is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("排程计算需要带时区的时间。")
+    beijing = timezone(timedelta(hours=8))
+    local_now = now.astimezone(beijing)
+    next_run = local_now.replace(hour=9, minute=0, second=0, microsecond=0)
+    if next_run <= local_now:
+        next_run += timedelta(days=1)
+    next_utc = next_run.astimezone(timezone.utc)
+    command = [sys.executable, str(Path(__file__).resolve().with_name("shipment_reminder.py")), "scheduled"]
+    if sys.platform == "win32":
+        quoted = "& " + " ".join("'" + part.replace("'", "''") + "'" for part in command)
+    else:
+        quoted = shlex.join(command)
+    return {"command": quoted, "timezone": "Asia/Shanghai", "daily_time": "09:00",
+            "scheduler_timezone": "UTC", "scheduler_daily_time": next_utc.strftime("%H:%M"),
+            "next_run_utc": next_utc.isoformat().replace("+00:00", "Z"),
+            "next_beijing_run": next_run.isoformat(), "data_directory": str(ROOT),
+            "next_run_source": "calculated_target_not_saved_schedule", "scheduler_verified": False}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("setup", "status", "test-wechat", "schedule-info"))
@@ -137,17 +160,7 @@ def main():
         elif args.command == "test-wechat":
             send("FBA 微信通道测试", "这是一条由你手动触发的通道测试。收到后请回到 Codex 确认。")
         else:
-            command = [sys.executable, str(Path(__file__).resolve().with_name("shipment_reminder.py")), "scheduled"]
-            if sys.platform == "win32":
-                quoted = "& " + " ".join("'" + part.replace("'", "''") + "'" for part in command)
-            else:
-                quoted = shlex.join(command)
-            beijing = timezone(timedelta(hours=8))
-            next_run = datetime.now(beijing).replace(hour=9, minute=0, second=0, microsecond=0)
-            if next_run <= datetime.now(beijing):
-                next_run += timedelta(days=1)
-            print(json.dumps({"command": quoted, "timezone": "Asia/Shanghai", "daily_time": "09:00",
-                "next_beijing_run": next_run.isoformat(), "data_directory": str(ROOT)}, ensure_ascii=False, indent=2))
+            print(json.dumps(schedule_info(), ensure_ascii=False, indent=2))
         return 0
     except (RuntimeError, ValueError, OSError) as error:
         print(str(error), file=sys.stderr)
